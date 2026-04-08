@@ -88,9 +88,16 @@
           }
         };
 
-        // Prefer canvas; some browsers only allow fullscreen for it.
-        if (tryRequest(canvas)) return;
-        if (tryRequest(container)) return;
+        // While loading, fullscreen the container so the HTML loader UI stays visible.
+        // After load, we can prefer the canvas (some browsers only allow fullscreen for it).
+        const isLoading = loadingBar && loadingBar.style.display !== "none";
+        if (isLoading) {
+          if (tryRequest(container)) return;
+          if (tryRequest(canvas)) return;
+        } else {
+          if (tryRequest(canvas)) return;
+          if (tryRequest(container)) return;
+        }
         tryRequest(document.documentElement);
       };
 

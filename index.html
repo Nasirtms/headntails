@@ -110,7 +110,13 @@
         });
       });
 
-      const isMobile = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isMobile = () => {
+        // iPadOS can report as Mac; userAgent checks alone are unreliable.
+        if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return true;
+        if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return true; // iPadOS Safari
+        if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return true; // many mobile browsers
+        return false;
+      };
       const isPortrait = () => {
         if (window.matchMedia) return window.matchMedia("(orientation: portrait)").matches;
         return window.innerHeight > window.innerWidth;
@@ -210,6 +216,9 @@
       updateOrientationUI();
       window.addEventListener("resize", updateOrientationUI, { passive: true });
       window.addEventListener("orientationchange", updateOrientationUI, { passive: true });
+      ["fullscreenchange", "webkitfullscreenchange", "MSFullscreenChange"].forEach((eventName) => {
+        document.addEventListener(eventName, updateOrientationUI, { passive: true });
+      });
 
       loadingBar.style.display = "block";
 

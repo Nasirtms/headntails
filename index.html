@@ -51,6 +51,9 @@
         <div id="unity-progress-bar-empty">
           <div id="unity-progress-bar-full"></div>
         </div>
+        <div id="unity-loading-text" style="margin-top:10px;font-family:arial;font-size:14px;color:#fff;text-align:center;opacity:.85;">
+          Downloading…
+        </div>
       </div>
       <div id="unity-warning"> </div>
     </div>
@@ -60,6 +63,7 @@
       var canvas = document.querySelector("#unity-canvas");
       var loadingBar = document.querySelector("#unity-loading-bar");
       var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var loadingText = document.querySelector("#unity-loading-text");
       var warningBanner = document.querySelector("#unity-warning");
       var rotateOverlay = document.querySelector("#rotate-overlay");
       var unityInstanceRef = null;
@@ -104,17 +108,18 @@
       const enterFullscreen = () => {
         // Only request fullscreen from a user gesture.
         pendingFullscreen = true;
-        // Request browser fullscreen immediately while we're still inside
-        // the user-gesture event (works on browsers that support it).
-        requestBrowserFullscreen();
 
-        // Unity's fullscreen wrapper also triggers browser fullscreen and will throw
-        // if called outside a gesture. Only call it when we *have* an instance and
-        // we're already handling a gesture.
+        // Prefer Unity's fullscreen wrapper when available.
+        // Calling *both* browser requestFullscreen and Unity SetFullscreen can cause
+        // a second request that fails the browser's user-activation check (often on 2nd time).
         if (unityInstanceRef) {
-          try { unityInstanceRef.SetFullscreen(1); } catch (_) {}
+          try { unityInstanceRef.SetFullscreen(1); } catch (err) { console.warn("Unity fullscreen failed:", err); }
           pendingFullscreen = false;
+          return;
         }
+
+        // Fallback (very early taps before Unity instance exists).
+        requestBrowserFullscreen();
       };
 
       const isInFullscreen = () =>
@@ -131,8 +136,8 @@
 
         // Capture the next user gesture as early as possible (even during loading).
         // Browsers require fullscreen to be triggered from a user interaction.
-        ["pointerdown", "touchend", "click"].forEach((eventName) => {
-          window.addEventListener(eventName, handler, { once: true, passive: true });
+        ["pointerdown", "click"].forEach((eventName) => {
+          window.addEventListener(eventName, handler, { once: true });
         });
       };
 
@@ -261,6 +266,11 @@
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
           progressBarFull.style.width = 100 * progress + "%";
+          if (loadingText) {
+            if (progress < 0.9) loadingText.textContent = "Downloading…";
+            else if (progress < 1) loadingText.textContent = "Initializing…";
+            else loadingText.textContent = "Starting…";
+          }
               }).then((unityInstance) => {
                 loadingBar.style.display = "none";
                 unityInstanceRef = unityInstance;

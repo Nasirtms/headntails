@@ -36,15 +36,15 @@
     </style>
   </head>
   <body>
-    <div id="rotate-overlay" aria-hidden="true">
-      <img
-        src="TemplateData/rotate-device-anim.svg"
-        alt="Rotate device to landscape"
-        onerror="this.onerror=null; this.src='TemplateData/rotate-device.svg';"
-      >
-      <div class="rotate-hint">Rotate your device to landscape.</div>
-    </div>
     <div id="unity-container" class="unity-desktop">
+      <div id="rotate-overlay" aria-hidden="true">
+        <img
+          src="TemplateData/rotate-device-anim.svg"
+          alt="Rotate device to landscape"
+          onerror="this.onerror=null; this.src='TemplateData/rotate-device.svg';"
+        >
+        <div class="rotate-hint">Rotate your device to landscape.</div>
+      </div>
       <canvas id="unity-canvas" width=1920 height=1080 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
         <div id="unity-logo"></div>

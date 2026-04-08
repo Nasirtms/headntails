@@ -66,19 +66,39 @@
       var pendingFullscreen = false;
       var fullscreenArmed = false;
 
-      const requestBrowserFullscreen = (el) => {
-        const fn =
-          el.requestFullscreen ||
-          el.webkitRequestFullscreen ||
-          el.msRequestFullscreen;
-        if (fn) fn.call(el);
+      const requestBrowserFullscreen = () => {
+        if (isInFullscreen()) return;
+
+        const tryRequest = (el) => {
+          if (!el) return false;
+          const fn =
+            el.requestFullscreen ||
+            el.webkitRequestFullscreen ||
+            el.msRequestFullscreen;
+          if (!fn) return false;
+          try {
+            const p = fn.call(el);
+            if (p && typeof p.catch === "function") {
+              p.catch((err) => console.warn("Fullscreen request blocked:", err));
+            }
+            return true;
+          } catch (err) {
+            console.warn("Fullscreen request failed:", err);
+            return false;
+          }
+        };
+
+        // Prefer canvas; some browsers only allow fullscreen for it.
+        if (tryRequest(canvas)) return;
+        if (tryRequest(container)) return;
+        tryRequest(document.documentElement);
       };
 
       const enterFullscreen = () => {
         pendingFullscreen = true;
         // Request browser fullscreen immediately while we're still inside
         // the user-gesture event (works on browsers that support it).
-        requestBrowserFullscreen(container);
+        requestBrowserFullscreen();
 
         // Unity's fullscreen call can be applied once the instance exists.
         if (unityInstanceRef) {

@@ -102,12 +102,15 @@
       };
 
       const enterFullscreen = () => {
+        // Only request fullscreen from a user gesture.
         pendingFullscreen = true;
         // Request browser fullscreen immediately while we're still inside
         // the user-gesture event (works on browsers that support it).
         requestBrowserFullscreen();
 
-        // Unity's fullscreen call can be applied once the instance exists.
+        // Unity's fullscreen wrapper also triggers browser fullscreen and will throw
+        // if called outside a gesture. Only call it when we *have* an instance and
+        // we're already handling a gesture.
         if (unityInstanceRef) {
           try { unityInstanceRef.SetFullscreen(1); } catch (_) {}
           pendingFullscreen = false;
@@ -261,7 +264,10 @@
               }).then((unityInstance) => {
                 loadingBar.style.display = "none";
                 unityInstanceRef = unityInstance;
-                if (pendingFullscreen) enterFullscreen();
+                // Don't auto-enter fullscreen here: browsers require a user gesture.
+                // If the user already tapped during loading, the browser fullscreen
+                // request already happened inside that tap handler.
+                pendingFullscreen = false;
               }).catch((message) => {
                 alert(message);
               });

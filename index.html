@@ -76,9 +76,13 @@
 
       const enterFullscreen = () => {
         pendingFullscreen = true;
+        // Request browser fullscreen immediately while we're still inside
+        // the user-gesture event (works on browsers that support it).
+        requestBrowserFullscreen(container);
+
+        // Unity's fullscreen call can be applied once the instance exists.
         if (unityInstanceRef) {
           try { unityInstanceRef.SetFullscreen(1); } catch (_) {}
-          requestBrowserFullscreen(container);
           pendingFullscreen = false;
         }
       };

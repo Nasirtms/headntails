@@ -92,16 +92,10 @@
           }
         };
 
-        // While loading, fullscreen the container so the HTML loader UI stays visible.
-        // After load, we can prefer the canvas (some browsers only allow fullscreen for it).
-        const isLoading = loadingBar && loadingBar.style.display !== "none";
-        if (isLoading) {
-          if (tryRequest(container)) return;
-          if (tryRequest(canvas)) return;
-        } else {
-          if (tryRequest(canvas)) return;
-          if (tryRequest(container)) return;
-        }
+        // Always fullscreen the container so HTML overlays (rotate + loader UI) stay visible.
+        // Some browsers only allow canvas fullscreen; we try it as a fallback.
+        if (tryRequest(container)) return;
+        if (tryRequest(canvas)) return;
         tryRequest(document.documentElement);
       };
 

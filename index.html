@@ -6,8 +6,44 @@
     <title>Unity WebGL Player | GameVault2.0</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
+    <style>
+      #rotate-overlay {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 16px;
+        background: rgba(0,0,0,0.92);
+        color: #fff;
+        z-index: 9999;
+        text-align: center;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      #rotate-overlay img {
+        width: min(140px, 40vw);
+        height: auto;
+        filter: drop-shadow(0 10px 24px rgba(0,0,0,0.5));
+      }
+      #rotate-overlay .rotate-hint {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 16px;
+        line-height: 1.35;
+        opacity: 0.92;
+      }
+    </style>
   </head>
   <body>
+    <div id="rotate-overlay" aria-hidden="true">
+      <img
+        src="TemplateData/rotate-device-anim.svg"
+        alt="Rotate device to landscape"
+        onerror="this.onerror=null; this.src='TemplateData/rotate-device.svg';"
+      >
+      <div class="rotate-hint">Rotate your device to landscape.</div>
+    </div>
     <div id="unity-container" class="unity-desktop">
       <canvas id="unity-canvas" width=1920 height=1080 tabindex="-1"></canvas>
       <div id="unity-loading-bar">
@@ -17,11 +53,6 @@
         </div>
       </div>
       <div id="unity-warning"> </div>
-      <div id="unity-footer">
-        <div id="unity-webgl-logo"></div>
-        <div id="unity-fullscreen-button"></div>
-        <div id="unity-build-title">GameVault2.0</div>
-      </div>
     </div>
     <script>
 
@@ -29,8 +60,77 @@
       var canvas = document.querySelector("#unity-canvas");
       var loadingBar = document.querySelector("#unity-loading-bar");
       var progressBarFull = document.querySelector("#unity-progress-bar-full");
-      var fullscreenButton = document.querySelector("#unity-fullscreen-button");
       var warningBanner = document.querySelector("#unity-warning");
+      var rotateOverlay = document.querySelector("#rotate-overlay");
+      var unityInstanceRef = null;
+      var pendingFullscreen = false;
+      var fullscreenArmed = false;
+
+      const requestBrowserFullscreen = (el) => {
+        const fn =
+          el.requestFullscreen ||
+          el.webkitRequestFullscreen ||
+          el.msRequestFullscreen;
+        if (fn) fn.call(el);
+      };
+
+      const enterFullscreen = () => {
+        pendingFullscreen = true;
+        if (unityInstanceRef) {
+          try { unityInstanceRef.SetFullscreen(1); } catch (_) {}
+          requestBrowserFullscreen(container);
+          pendingFullscreen = false;
+        }
+      };
+
+      const isInFullscreen = () =>
+        !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+
+      const armFullscreenGesture = () => {
+        if (fullscreenArmed) return;
+        fullscreenArmed = true;
+
+        const handler = () => {
+          fullscreenArmed = false;
+          if (!isInFullscreen() && rotateOverlay.style.display !== "flex") enterFullscreen();
+        };
+
+        // Capture the next user gesture as early as possible (even during loading).
+        // Browsers require fullscreen to be triggered from a user interaction.
+        ["pointerdown", "touchend", "click"].forEach((eventName) => {
+          window.addEventListener(eventName, handler, { once: true, passive: true });
+        });
+      };
+
+      // Arm initially, and re-arm whenever the user exits fullscreen.
+      armFullscreenGesture();
+      ["fullscreenchange", "webkitfullscreenchange", "MSFullscreenChange"].forEach((eventName) => {
+        document.addEventListener(eventName, () => {
+          if (!isInFullscreen()) armFullscreenGesture();
+        });
+      });
+
+      const isMobile = () => /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isPortrait = () => {
+        if (window.matchMedia) return window.matchMedia("(orientation: portrait)").matches;
+        return window.innerHeight > window.innerWidth;
+      };
+
+      const updateOrientationUI = () => {
+        if (!isMobile()) {
+          rotateOverlay.style.display = "none";
+          rotateOverlay.setAttribute("aria-hidden", "true");
+          return;
+        }
+
+        if (isPortrait()) {
+          rotateOverlay.style.display = "flex";
+          rotateOverlay.setAttribute("aria-hidden", "false");
+        } else {
+          rotateOverlay.style.display = "none";
+          rotateOverlay.setAttribute("aria-hidden", "true");
+        }
+      };
 
       // Shows a temporary message banner/ribbon for a few seconds, or
       // a permanent error message on top of the canvas if type=='error'.
@@ -107,6 +207,10 @@
         canvas.style.height = "1080px";
       }
 
+      updateOrientationUI();
+      window.addEventListener("resize", updateOrientationUI, { passive: true });
+      window.addEventListener("orientationchange", updateOrientationUI, { passive: true });
+
       loadingBar.style.display = "block";
 
       var script = document.createElement("script");
@@ -116,9 +220,8 @@
           progressBarFull.style.width = 100 * progress + "%";
               }).then((unityInstance) => {
                 loadingBar.style.display = "none";
-                fullscreenButton.onclick = () => {
-                  document.makeFullscreen('unity-container');
-                };
+                unityInstanceRef = unityInstance;
+                if (pendingFullscreen) enterFullscreen();
               }).catch((message) => {
                 alert(message);
               });

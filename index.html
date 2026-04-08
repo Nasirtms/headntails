@@ -109,17 +109,20 @@
         // Only request fullscreen from a user gesture.
         pendingFullscreen = true;
 
-        // Prefer Unity's fullscreen wrapper when available.
-        // Calling *both* browser requestFullscreen and Unity SetFullscreen can cause
-        // a second request that fails the browser's user-activation check (often on 2nd time).
-        if (unityInstanceRef) {
+        // Use the browser fullscreen API as primary (more consistent).
+        // Unity's SetFullscreen internally calls requestFullscreen and can fail the
+        // user-activation permission check on re-entry in some browsers.
+        requestBrowserFullscreen();
+
+        // Fallback: if the browser fullscreen API isn't available/supported, try Unity.
+        const hasFsApi = !!(canvas.requestFullscreen || canvas.webkitRequestFullscreen || canvas.msRequestFullscreen ||
+                            container.requestFullscreen || container.webkitRequestFullscreen || container.msRequestFullscreen ||
+                            document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen || document.documentElement.msRequestFullscreen);
+        if (!hasFsApi && unityInstanceRef) {
           try { unityInstanceRef.SetFullscreen(1); } catch (err) { console.warn("Unity fullscreen failed:", err); }
-          pendingFullscreen = false;
-          return;
         }
 
-        // Fallback (very early taps before Unity instance exists).
-        requestBrowserFullscreen();
+        pendingFullscreen = false;
       };
 
       const isInFullscreen = () =>
@@ -136,7 +139,7 @@
 
         // Capture the next user gesture as early as possible (even during loading).
         // Browsers require fullscreen to be triggered from a user interaction.
-        ["pointerdown", "click"].forEach((eventName) => {
+        ["pointerdown", "touchend", "click"].forEach((eventName) => {
           window.addEventListener(eventName, handler, { once: true });
         });
       };
@@ -261,11 +264,39 @@
 
       loadingBar.style.display = "block";
 
+      // Smooth the visual progress bar so it doesn't jump (0→90→100).
+      var targetProgress = 0;
+      var visualProgress = 0;
+      var progressRaf = 0;
+      const clamp01 = (v) => Math.max(0, Math.min(1, v));
+      const startProgressAnimation = () => {
+        if (progressRaf) return;
+        const tick = () => {
+          // Ease toward the latest target. Speed scales with remaining distance.
+          const delta = targetProgress - visualProgress;
+          const step = Math.max(0.0025, Math.min(0.035, Math.abs(delta) * 0.18));
+          visualProgress += Math.sign(delta) * Math.min(Math.abs(delta), step);
+          visualProgress = clamp01(visualProgress);
+          if (progressBarFull) progressBarFull.style.width = (visualProgress * 100).toFixed(2) + "%";
+
+          if (Math.abs(targetProgress - visualProgress) < 0.0005 && targetProgress >= 1) {
+            progressRaf = 0;
+            return;
+          }
+          progressRaf = requestAnimationFrame(tick);
+        };
+        progressRaf = requestAnimationFrame(tick);
+      };
+
       var script = document.createElement("script");
       script.src = loaderUrl;
       script.onload = () => {
         createUnityInstance(canvas, config, (progress) => {
-          progressBarFull.style.width = 100 * progress + "%";
+          // Keep the bar moving a bit during initialization: map 0..0.9 to 0..0.97
+          // so the bar doesn't look stuck at 90% while WASM compiles/initializes.
+          const mapped = progress < 0.9 ? (progress / 0.9) * 0.97 : 0.97 + (progress - 0.9) * 0.03 / 0.1;
+          targetProgress = clamp01(mapped);
+          startProgressAnimation();
           if (loadingText) {
             if (progress < 0.9) loadingText.textContent = "Downloading…";
             else if (progress < 1) loadingText.textContent = "Initializing…";
@@ -274,6 +305,8 @@
               }).then((unityInstance) => {
                 loadingBar.style.display = "none";
                 unityInstanceRef = unityInstance;
+                targetProgress = 1;
+                startProgressAnimation();
                 // Don't auto-enter fullscreen here: browsers require a user gesture.
                 // If the user already tapped during loading, the browser fullscreen
                 // request already happened inside that tap handler.

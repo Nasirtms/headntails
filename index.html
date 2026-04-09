@@ -198,7 +198,12 @@
         updateBannerVisibility();
       }
 
-      var buildUrl = "Build";
+      // IMPORTANT: bump this string each release (or set it to a timestamp)
+      // and deploy your Unity build into `Build/<buildVersion>/`.
+      // This makes build URLs unique so browsers will always download the newest build,
+      // while still allowing aggressive immutable caching.
+      var buildVersion = "v1";
+      var buildUrl = "Build/" + buildVersion;
       var loaderUrl = buildUrl + "/Builds.loader.js";
       var config = {
         dataUrl: buildUrl + "/Builds.data",

@@ -202,7 +202,7 @@
       // and deploy your Unity build into `Build/<buildVersion>/`.
       // This makes build URLs unique so browsers will always download the newest build,
       // while still allowing aggressive immutable caching.
-      var buildVersion = "v2";
+      var buildVersion = "v1";
       var buildUrl = "Build/" + buildVersion;
       var loaderUrl = buildUrl + "/HeadsNTails.loader.js";
       var config = {
@@ -215,6 +215,20 @@
         productVersion: "0.0.1",
         showBanner: unityShowBanner,
       };
+//
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/MonkeyMadness.loader.js";
+      var config = {
+        dataUrl: buildUrl + "/MonkeyMadness.data.unityweb",
+        frameworkUrl: buildUrl + "/MonkeyMadness.framework.js.unityweb",
+        codeUrl: buildUrl + "/MonkeyMadness.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "TMS",
+        productName: "GameVault2.0",
+        productVersion: "0.0.1",
+        showBanner: unityShowBanner,
+      };
+
 
       // By default, Unity keeps WebGL canvas render target size matched with
       // the DOM size of the canvas element (scaled by window.devicePixelRatio)
